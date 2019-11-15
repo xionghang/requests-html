@@ -1,9 +1,11 @@
+
 from requests_html import HTMLSession
 import requests
 import time
 import json
 import random
 import sys
+import getopt
 
 session = HTMLSession()
 list_url = 'http://www.allitebooks.com/page/'
@@ -25,10 +27,13 @@ USER_AGENTS = [
 ]
 # 目录页
 def get_list(url):
+    book_link_count = 0
     response = session.get(url)
     all_link = response.html.find('.entry-title a')
     for link in all_link:
-        getBookUrl(link.attrs['href'])
+        if getBookUrl(link.attrs['href']) == 0:
+            book_link_count = book_link_count + 1
+    return book_link_count
 
 # 详情页
 def getBookUrl(url):
@@ -40,6 +45,8 @@ def getBookUrl(url):
         savelink(link)
         #文件下载
         download(link)
+        return 0
+    return -1
 
 #导出图书下载地址清单
 def savelink(url):
@@ -80,9 +87,31 @@ def download(url):
                     sys.stdout.flush()
             print(filename + '下载完成！')
 
+def exit_and_print_help(exit_code):
+    print('Exam_crawler.py -k <keyword> -n <max_page_num>')
+    sys.exit(exit_code)
+    
 if __name__ == '__main__':
-    for x in range(0, 755):
-        print('当前页面: ' + str(x))
-        get_list(list_url + str(x))
-        print("处理完成")
-    #test()
+   keyword = ''
+   max_page_num = 5
+   argv = sys.argv[1:]
+   try:
+      opts, args = getopt.getopt(argv,"hk:n:",[])
+   except getopt.GetoptError:
+      exit_and_print_help(1)
+   for opt, arg in opts:
+      if opt == '-h':
+         exit_and_print_help(0)
+      elif opt in ("-k", ):
+         keyword = arg
+      elif opt in ("-n", "--ofile"):
+         max_page_num = int(arg)
+   if len(keyword) < 1:
+      exit_and_print_help(1)
+
+   print('开始关键词搜索：' + keyword)
+   for x in range(1, max_page_num + 1):
+       print('当前页面: ' + str(x))
+       if get_list(list_url + str(x) + '/?s=' + keyword) < 1:
+           break   # 页面总数小于max_page_num,处理完成
+   print('完成')
